@@ -4,12 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "glm/glm.hpp"
-
+#include <math.h>
 typedef struct Vt {
-	glm::vec3 aPos;
-	glm::vec3 aNormal;
-
+	float x,y,z;
 }Vertex;
 
 
@@ -18,8 +15,7 @@ typedef struct offmodel {
 	unsigned int *indices;
 	int numberOfVertices;
  	int numberOfIndices;
-	glm::vec3 minBound;
-	glm::vec3 maxBound;
+	float zmin, zmax;
 }OffModel;
 
 
@@ -32,6 +28,7 @@ OffModel* readOffFile(char * OffFile) {
 	float x,y,z;
 	int n, v;
 	int nv, np;
+	float zmin = INFINITY, zmax = -INFINITY;
 	OffModel *model;
 	input = fopen(OffFile, "r");
 	fscanf(input, "%s", type);
@@ -58,8 +55,11 @@ OffModel* readOffFile(char * OffFile) {
 	/* Read the vertices' location*/	
 	for(i = 0;i < nv;i ++) {
 		fscanf(input, "%f %f %f", &x,&y,&z);
-		model->vertices[i].aPos = glm::vec3(x, y, z);
-		model->vertices[i].aNormal = glm::vec3(0.0f);
+		(model->vertices[i]).x = x;
+		(model->vertices[i]).y = y;
+		(model->vertices[i]).z = z;
+		zmin = fminf(zmin, z);
+		zmax = fmaxf(zmax, z);
 	}
 
     int c = 0;
@@ -75,60 +75,31 @@ OffModel* readOffFile(char * OffFile) {
 		model->indices[c] = v1;
 		model->indices[c+1] = v2;
 		model->indices[c+2] = v3;
-
-		glm::vec3 A = model->vertices[v1].aPos;
-		glm::vec3 B = model->vertices[v2].aPos;
-		glm::vec3 C = model->vertices[v3].aPos;
-
-		auto a = C - B;
-		auto b = A - B;
-		glm::vec3 normal = glm::normalize(glm::cross(a, b));
-
-		model->vertices[v1].aNormal += normal;
-		model->vertices[v2].aNormal += normal;
-		model->vertices[v3].aNormal += normal;
-
-
 		c += 3;
 	}
-
-	for(i = 0;i < nv; i++){
-		model->vertices[i].aNormal = glm::normalize(model->vertices[i].aNormal);
-	}
-    if(c != model->numberOfIndices){
+	model->zmin = zmin;
+	model->zmax = zmax;
+    if(c == model->numberOfIndices-1){
         printf("Error in reading indices\n");
         exit(1);
-    }
-
+    }	
 	fclose(input);
 	return model;
 }
 
 void printOffModel(OffModel* model) {
-	int i, j;
-	printf("OFF\n");
+	// int i, j;
+	// printf("OFF\n");
     
-	printf("%d %d 0 \n", model->numberOfVertices, model->numberOfIndices/3);
+	// printf("%d %d 0 \n", model->numberOfVertices, model->numberOfIndices/3);
 	
 	// for(i = 0; i < model->numberOfVertices;i ++) {
 	// 	printf("%f %f %f \n", (model->vertices[i]).x, (model->vertices[i]).y, (model->vertices[i]).z);
-	// }
-	// unsigned int c = 0;
-	// while (c < 15) {
-	// 	printf("%d \n", 3);
-	// 	for(j = 0;j < 3;j ++) {
-	// 		printf("\t%d %f %f %f\n", model->indices[c], model->vertices[model->indices[c]].x, model->vertices[model->indices[c]].y, model->vertices[model->indices[c]].z);
-	// 		c++;
-	// 	}
-	// 	printf("\n");
-	// }
-    
-	
-
+	// 
 }
 
 int FreeOffModel(OffModel* model) {
-
+	int i;
 	if(model == NULL){
 		return 0;
 	}

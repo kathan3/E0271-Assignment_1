@@ -14,7 +14,6 @@
 #include "math_utils.h"
 #include "OFFReader.h"
 
-
 /********************************************************************/
 /*   Variables */
 
@@ -26,13 +25,9 @@ bool isAnimating = true;
 float rotation = 0.0f;
 GLuint VBO, VAO, EBO;
 GLuint gWorldLocation;
-GLuint ShaderProgram;
 OffModel* model;
-
-glm::mat4 proj;
-glm::mat4 view;
+GLuint ShaderProgram;
 glm::mat4 modelmat;
-
 /* Constants */
 const int ANIMATION_DELAY = 20; /* milliseconds between rendering */
 const char* pVSFileName = "shader.vs";
@@ -67,21 +62,21 @@ static void CreateVertexBuffer() {
 	glGenVertexArrays(1, &VAO);
 	cout << "VAO: " << VAO << endl;
 	glBindVertexArray(VAO);
+	
+
 	glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, model->numberOfVertices *sizeof(Vertex), model->vertices, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-
-    glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex) , (void*)(3*sizeof(float)));
-
+    glBufferData(GL_ARRAY_BUFFER, model->numberOfVertices *3* sizeof(float), model->vertices, GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, model->numberOfIndices * sizeof(unsigned int), model->indices, GL_STATIC_DRAW);
+	// Send zmin and zmax to the shader as uniform variables
+	
 
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
 
     // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
     glBindBuffer(GL_ARRAY_BUFFER, 0); 
@@ -164,6 +159,11 @@ static void CompileShaders() {
 
 	glUseProgram(ShaderProgram);
 	gWorldLocation = glGetUniformLocation(ShaderProgram, "gWorld");
+
+	GLuint zminLocation = glGetUniformLocation(ShaderProgram, "zmin");
+	GLuint zmaxLocation = glGetUniformLocation(ShaderProgram, "zmax");
+	glUniform1f(zminLocation, model->zmin);
+	glUniform1f(zmaxLocation, model->zmax);
 }
 
 /********************************************************************
@@ -181,26 +181,10 @@ void onInit(int argc, char * argv[])
 	CreateVertexBuffer();
 	CompileShaders();
 
-	glUseProgram(ShaderProgram);
-	glUniform3f(glGetUniformLocation(ShaderProgram, "objectColor"), 1.0f, 0.5f, 0.31f);
-	glUniform3f(glGetUniformLocation(ShaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
-	glUniform3f(glGetUniformLocation(ShaderProgram, "lightPos"), 1.2f, 1.0f, 2.0f);
-	glUniform3f(glGetUniformLocation(ShaderProgram, "viewPos"), 0.0f, 0.0f, 0.0f);
 
 	modelmat = glm::mat4(1.0f);
     modelmat = glm::scale(modelmat, glm::vec3(0.03f));
-    modelmat = glm::rotate(modelmat, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-
-    
-    view = glm::mat4(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-
-    
-    
-    proj = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
-
-	
-
+    modelmat = glm::rotate(modelmat, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	/* set to draw in window based on depth  */
 	glEnable(GL_DEPTH_TEST); 
@@ -213,18 +197,8 @@ static void onDisplay() {
 	glm::mat4 trans = glm::mat4(1.0f);
 	trans = glm::rotate(trans, rotation, glm::vec3(0.0f, 0.0f, 1.0f));
 
-	glUseProgram(ShaderProgram);
+	glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, glm::value_ptr(trans));
 
-	// glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, glm::value_ptr(trans));
-	glUniform3f(glGetUniformLocation(ShaderProgram, "objectColor"), 1.0f, 0.5f, 0.31f);
-	glUniform3f(glGetUniformLocation(ShaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
-	glUniform3f(glGetUniformLocation(ShaderProgram, "lightPos"), 1.2f, 1.0f, 2.0f);
-	glUniform3f(glGetUniformLocation(ShaderProgram, "viewPos"), 0.0f, 0.0f, 0.0f);
-	glUniformMatrix4fv(glGetUniformLocation(ShaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(modelmat));
-	glUniformMatrix4fv(glGetUniformLocation(ShaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-	glUniformMatrix4fv(glGetUniformLocation(ShaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
-
-	modelmat = glm::rotate(modelmat, 0.001f, glm::vec3(0.0f, 0.0f, 1.0f));
 	//glEnableVertexAttribArray(0);
 	//glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -265,7 +239,7 @@ static void onIdle() {
 		/* Ensures fairly constant framerate */
 		if (currentTime - oldTime > ANIMATION_DELAY) {
 			// do animation....
-			rotation += 0.000;
+			rotation += 0.001;
 
 			oldTime = currentTime;
 			/* compute the frame rate */

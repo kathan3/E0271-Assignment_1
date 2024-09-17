@@ -1,19 +1,15 @@
-#version 460 core
-
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNormal;
-
-out vec3 FragPos;
-out vec3 Normal;
-
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
-
+#version 460
+in vec3 Position;
+out float depth;
+uniform mat4 gWorld;
+uniform float zmin;
+uniform float zmax;
 void main()
 {
-    FragPos = vec3(model * vec4(aPos, 1.0));
-    Normal = mat3(transpose(inverse(model))) * aNormal;  
     
-    gl_Position = projection * view * vec4(FragPos, 1.0);
+    float distanceFromCamera = length(Position);
+    // depth = (distanceFromCamera-zmin) / (zmax - zmin);
+    depth = (1.0 - (Position.z - zmin) / (zmax - zmin));
+    // depth = clamp(depth, 0.0, 1.0);
+    gl_Position = gWorld * vec4(0.07 * Position, 1.0);
 }
